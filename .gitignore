@@ -1,0 +1,15 @@
+# swiftpm / build output
+.build/
+.swiftpm/
+DerivedData/
+
+# assembled app bundle (produced by build.sh)
+*.app/
+ClaudeUsage.app/
+
+# xcode cruft
+*.xcuserstate
+xcuserdata/
+
+# macos
+.DS_Store
