@@ -1,6 +1,6 @@
 # claude usage widget
 
-a tiny native macOS menu-bar app that tracks Claude usage limits across **multiple
+A tiny native macOS menu-bar app that tracks Claude usage limits across **multiple
 accounts** at once — plan, session (5-hour) and weekly (7-day) limits, with how much
 is left and when each window resets.
 
@@ -12,6 +12,8 @@ is left and when each window resets.
   kept alive after login
 - **sessions in your keychain** — nothing is sent anywhere except claude.ai
 <img width="345" height="445" alt="image" src="https://github.com/user-attachments/assets/420206e7-75cd-4a23-8b2f-4f3b93892a88" />
+
+Keep in mind, this is 100% vibe-coded slop, but it works well for me.
 
 ## build
 
