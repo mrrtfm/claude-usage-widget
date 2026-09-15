@@ -1,6 +1,10 @@
 import Foundation
 import Observation
+import ServiceManagement
 import SwiftUI
+import os
+
+private let log = Logger(subsystem: "com.laszlo.ClaudeUsage", category: "store")
 
 // which usage window the menu-bar readout tracks.
 enum MenuMetric: String, CaseIterable, Identifiable {
@@ -29,6 +33,20 @@ final class UsageStore {
     var menuBarMetric: MenuMetric {
         didSet { UserDefaults.standard.set(menuBarMetric.rawValue, forKey: "menuBarMetric") }
     }
+    // backed by the OS login-item registration, not UserDefaults (the system is the truth).
+    var launchAtLogin: Bool {
+        didSet {
+            guard !applyingLaunch, launchAtLogin != oldValue else { return }
+            do {
+                if launchAtLogin { try SMAppService.mainApp.register() }
+                else { try SMAppService.mainApp.unregister() }
+            } catch {
+                log.error("launch-at-login toggle failed: \(error.localizedDescription, privacy: .public)")
+                applyingLaunch = true; launchAtLogin = oldValue; applyingLaunch = false  // revert w/o recursing
+            }
+        }
+    }
+    private var applyingLaunch = false
 
     private var login: LoginController?
     private var timerTask: Task<Void, Never>?
@@ -38,6 +56,7 @@ final class UsageStore {
         refreshMinutes = (d.object(forKey: "refreshMinutes") as? Int) ?? 5
         showPercentInMenuBar = (d.object(forKey: "showPercent") as? Bool) ?? true
         menuBarMetric = MenuMetric(rawValue: d.string(forKey: "menuBarMetric") ?? "") ?? .session
+        launchAtLogin = SMAppService.mainApp.status == .enabled  // init assignment skips didSet
         states = KeychainStore.load().map { AccountState(account: $0) }
     }
 

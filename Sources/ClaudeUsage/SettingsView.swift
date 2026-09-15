@@ -24,6 +24,12 @@ struct SettingsPane: View {
             .toggleStyle(.switch)
             .controlSize(.mini)
 
+            Toggle(isOn: $store.launchAtLogin) {
+                Text("Launch at login").font(.caption)
+            }
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+
             HStack {
                 Text("Menu bar tracks").font(.caption)
                 Spacer()
