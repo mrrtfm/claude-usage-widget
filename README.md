@@ -11,6 +11,7 @@ is left and when each window resets.
 - **low footprint** — plain SwiftUI + URLSession, polls on an interval you set, no webview
   kept alive after login
 - **sessions in your keychain** — nothing is sent anywhere except claude.ai
+<img width="345" height="445" alt="image" src="https://github.com/user-attachments/assets/420206e7-75cd-4a23-8b2f-4f3b93892a88" />
 
 ## build
 
