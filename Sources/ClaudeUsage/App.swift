@@ -56,7 +56,7 @@ private struct MenuBarContent: View {
 
     var body: some View {
         HStack(spacing: 3) {
-            Image(systemName: "speedometer").font(.system(size: 14))   // always-available symbol
+            Image(nsImage: gaugeGlyph).interpolation(.high)   // matches the app icon's gauge
             if show {
                 if items.count == 2 {
                     // two accounts → stack both, one per line, tagged by initial
@@ -76,6 +76,29 @@ private struct MenuBarContent: View {
         .padding(.vertical, 1)
     }
 }
+
+// menu-bar gauge glyph — same silhouette as the app icon (280° arc, gap at the bottom),
+// drawn monochrome so the bar can tint it. NSImage(flipped:) is resolution-independent, so
+// this stays crisp when ImageRenderer rasterises the label at 2x. coords are y-up here.
+@MainActor private let gaugeGlyph: NSImage = {
+    let side: CGFloat = 15
+    let img = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
+        let s = rect.width
+        let center = CGPoint(x: s / 2, y: s / 2)
+        let lw = s * 0.14
+        let r = s / 2 - lw / 2 - s * 0.03
+        func deg(_ d: CGFloat) -> CGFloat { d * .pi / 180 }
+        ctx.setStrokeColor(NSColor.black.cgColor)   // template tints by alpha; colour irrelevant
+        ctx.setLineCap(.round)
+        ctx.setLineWidth(lw)
+        ctx.addArc(center: center, radius: r, startAngle: deg(230), endAngle: deg(310), clockwise: true)
+        ctx.strokePath()
+        return true
+    }
+    img.isTemplate = true
+    return img
+}()
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private weak var store: UsageStore?

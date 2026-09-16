@@ -30,6 +30,16 @@ then:
 open ClaudeUsage.app
 ```
 
+or build + drop it into `/Applications` and launch in one shot:
+
+```bash
+./build.sh --install  # -> /Applications/ClaudeUsage.app, then opens it
+```
+
+> Gotcha: `--install` quits a running copy first (can't overwrite a live bundle), so a
+> rebuild-and-reinstall is a single command. config still works alongside it —
+> `./build.sh debug --install`.
+
 > Gotcha: the Command Line Tools toolchain alone can't build this — SwiftUI's `@State` /
 > `@Observable` macro plugins ship only with full Xcode. `build.sh` uses whatever
 > `xcode-select -p` points at.
