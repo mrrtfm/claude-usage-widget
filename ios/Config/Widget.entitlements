@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- empty on purpose: app groups and keychain sharing need a paid developer account,
+	     and asking for an entitlement you can't sign for fails the build outright.
+	     enrolled? uncomment both, matching APP_GROUP_ID / KEYCHAIN_ACCESS_GROUP.
+
+	<key>com.apple.security.application-groups</key>
+	<array><string>group.com.laszlo.ClaudeUsage</string></array>
+	<key>keychain-access-groups</key>
+	<array><string>$(AppIdentifierPrefix)com.laszlo.ClaudeUsage</string></array>
+	-->
+</dict>
+</plist>

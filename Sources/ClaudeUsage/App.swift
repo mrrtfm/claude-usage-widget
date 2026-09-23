@@ -1,5 +1,13 @@
 import SwiftUI
 import AppKit
+import ClaudeUsageKit
+
+// opening the repo folder in Xcode opens THIS package (via .swiftpm/xcode), and picking an
+// iPhone destination then tries to build the menu-bar app for iOS — which surfaces as
+// "No such module 'AppKit'" or a deployment-target mismatch on ClaudeUsageKit. say so.
+#if !os(macOS)
+#error("This is the macOS menu-bar app. For iPhone open ios/ClaudeUsage.xcodeproj instead.")
+#endif
 
 @main
 struct ClaudeUsageApp: App {

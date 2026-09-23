@@ -1,6 +1,7 @@
 import AppKit
 import WebKit
 import os
+import ClaudeUsageKit
 
 private let log = Logger(subsystem: "com.laszlo.ClaudeUsage", category: "login")
 

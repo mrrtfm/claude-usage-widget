@@ -1,4 +1,5 @@
 import SwiftUI
+import ClaudeUsageKit
 
 // the dropdown panel: header, one card per account, footer actions.
 struct PanelView: View {
@@ -55,18 +56,18 @@ struct PanelView: View {
                 Text("Claude Usage").font(.headline)
                 Spacer()
                 if let last = store.lastRefresh {
-                    Text(last, format: .relative(presentation: .numeric))
-                        .font(.caption2).foregroundStyle(.secondary)
+                    // coarse "3m ago" on a 30s tick. `.relative` re-renders every second and its
+                    // width wobbles ("in 0 seconds" → "12 seconds ago"), which shoves everything
+                    // right of the Spacer around. fixed lane so the button never moves.
+                    TimelineView(.periodic(from: .now, by: 30)) { _ in
+                        Text(agoText(last))
+                            .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                    }
+                    .frame(width: 58, alignment: .trailing)
                 }
-                Button {
-                    Task { await store.refreshAll() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .rotationEffect(.degrees(store.isRefreshing ? 360 : 0))
-                        .animation(store.isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: store.isRefreshing)
+                RefreshButton(isRefreshing: store.isRefreshing) {
+                    await store.refreshAll()
                 }
-                .buttonStyle(.borderless)
-                .disabled(store.isRefreshing)
             }
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
@@ -87,6 +88,17 @@ struct PanelView: View {
         .frame(maxWidth: .infinity)
     }
 
+    // short, low-churn relative label — minutes granularity keeps the width stable.
+    private func agoText(_ date: Date) -> String {
+        let secs = max(0, Int(Date().timeIntervalSince(date)))
+        switch secs {
+        case ..<45: return "just now"
+        case ..<3600: return "\(secs / 60)m ago"
+        case ..<86400: return "\(secs / 3600)h ago"
+        default: return "\(secs / 86400)d ago"
+        }
+    }
+
     private var footer: some View {
         HStack(spacing: 12) {
             Button {
@@ -104,6 +116,44 @@ struct PanelView: View {
                 .buttonStyle(.borderless)
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
+    }
+}
+
+// MARK: - refresh button
+
+// spins only while *you* are refreshing — background polls flip store.isRefreshing too, and
+// tying the spin to that left it turning on every 5-minute tick.
+//
+// the animation stays inside a fixed 14x14 box on purpose: `.animation`/`withAnimation` also
+// govern the subtree's own placement, and a repeatForever that leaks onto layout makes the
+// button fly back and forth forever. a repeatForever is never "finished" either — the reset to
+// 0 has to go through a transaction with animations disabled or it keeps turning.
+private struct RefreshButton: View {
+    let isRefreshing: Bool
+    let action: () async -> Void
+    @State private var angle: Double = 0
+    @State private var spinning = false
+
+    var body: some View {
+        Button {
+            guard !spinning else { return }
+            spinning = true
+            withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { angle = 360 }
+            Task {
+                async let work: Void = action()
+                try? await Task.sleep(for: .milliseconds(600))   // don't flash on a fast refresh
+                await work
+                var stop = Transaction(); stop.disablesAnimations = true
+                withTransaction(stop) { angle = 0 }
+                spinning = false
+            }
+        } label: {
+            Image(systemName: "arrow.clockwise")
+                .rotationEffect(.degrees(angle))
+                .frame(width: 14, height: 14)
+        }
+        .buttonStyle(.borderless)
+        .disabled(isRefreshing)
     }
 }
 
@@ -226,22 +276,6 @@ struct UsageBarView: View {
         }
     }
 
-    private var barColor: Color {
-        switch used {
-        case ..<50: return .green
-        case ..<75: return .yellow
-        case ..<90: return .orange
-        default: return .red
-        }
-    }
-
-    private func resetText(_ date: Date) -> String {
-        let now = Date()
-        if date <= now { return "resets now" }
-        let secs = Int(date.timeIntervalSince(now))
-        let d = secs / 86400, h = (secs % 86400) / 3600, m = (secs % 3600) / 60
-        if d > 0 { return "resets in \(d)d \(h)h" }
-        if h > 0 { return "resets in \(h)h \(m)m" }
-        return "resets in \(m)m"
-    }
+    // colour ramp + reset wording live in the kit so iOS renders bars identically
+    private var barColor: Color { usageTint(used: used) }
 }

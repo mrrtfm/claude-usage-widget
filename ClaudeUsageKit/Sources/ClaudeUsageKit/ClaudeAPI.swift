@@ -7,15 +7,15 @@ private let log = Logger(subsystem: "com.laszlo.ClaudeUsage", category: "api")
 // (sessionKey + cloudflare's cf_clearance), captured at login and replayed here.
 // war story: cf_clearance is bound to the user-agent, so the UA below MUST match
 // the one set on the login WKWebView or cloudflare 403s the replayed request.
-enum ClaudeAPI {
+public enum ClaudeAPI {
     static let base = "https://claude.ai"
     // fallback only — real requests use the UA captured from the login webview so it
     // matches the cf_clearance cookie cloudflare issued.
     static let fallbackUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
 
-    struct APIError: LocalizedError {
-        let message: String
-        var errorDescription: String? { message }
+    public struct APIError: LocalizedError {
+        public let message: String
+        public var errorDescription: String? { message }
     }
 
     // MARK: request plumbing
@@ -51,16 +51,16 @@ enum ClaudeAPI {
 
     // MARK: identity + org discovery
 
-    struct Identity {
-        var name: String
-        var email: String
-        var orgUuid: String
-        var planTier: String
+    public struct Identity {
+        public var name: String
+        public var email: String
+        public var orgUuid: String
+        public var planTier: String
     }
 
     // pulls account name/email + the primary org (uuid + plan tier).
     // decoded loosely with JSONSerialization since the bootstrap payload is large and shifts.
-    static func fetchIdentity(cookies: [String: String], userAgent: String?) async throws -> Identity {
+    public static func fetchIdentity(cookies: [String: String], userAgent: String?) async throws -> Identity {
         let data = try await get("/api/bootstrap", cookies: cookies, userAgent: userAgent)
         let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
 
@@ -125,7 +125,7 @@ enum ClaudeAPI {
 
     // MARK: usage
 
-    static func fetchUsage(orgUuid: String, cookies: [String: String], userAgent: String?) async throws -> UsageSnapshot {
+    public static func fetchUsage(orgUuid: String, cookies: [String: String], userAgent: String?) async throws -> UsageSnapshot {
         let data = try await get("/api/organizations/\(orgUuid)/usage", cookies: cookies, userAgent: userAgent)
         let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
         // some builds nest the windows under a wrapper key; unwrap if so

@@ -1,6 +1,7 @@
 // draws the ClaudeUsage app icon at a given pixel size -> png. pure CoreGraphics, no deps.
 // a coral squircle + cream usage-gauge arc (~68% filled, gap at bottom).
-// usage: swift gen-icon.swift <size> <out.png> [dot]
+// usage: swift gen-icon.swift <size> <out.png> [dot] [ios]
+// `ios` = full-bleed square, no transparent corners (iOS masks the icon itself).
 //
 // regen ../AppIcon.icns:
 //   set -e; mkdir -p AppIcon.iconset
@@ -15,11 +16,14 @@ import UniformTypeIdentifiers
 
 let size = CGFloat(Int(CommandLine.arguments[1]) ?? 1024)
 let outPath = CommandLine.arguments[2]
+let flags = Set(CommandLine.arguments.dropFirst(3))
+let iosMode = flags.contains("ios")
 
 let cs = CGColorSpaceCreateDeviceRGB()
 guard let ctx = CGContext(data: nil, width: Int(size), height: Int(size),
                           bitsPerComponent: 8, bytesPerRow: 0, space: cs,
-                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+                          // app store rejects icons with an alpha channel — skip it for iOS
+                          bitmapInfo: (iosMode ? CGImageAlphaInfo.noneSkipLast : .premultipliedLast).rawValue) else {
     fatalError("no ctx")
 }
 ctx.setAllowsAntialiasing(true)
@@ -32,9 +36,11 @@ func rgb(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> CGColor 
 let s = size
 
 // --- squircle background (apple-ish grid: ~824/1024 shape, corner ~0.2246 of shape) ---
-let margin = s * (100.0/1024.0)
+// iOS wants the opposite: edge-to-edge and opaque, since springboard applies its own mask
+// and an alpha channel gets an icon rejected at submission.
+let margin = iosMode ? 0 : s * (100.0/1024.0)
 let rectSize = s - margin*2
-let corner = rectSize * 0.2246
+let corner = iosMode ? 0 : rectSize * 0.2246
 let bgRect = CGRect(x: margin, y: margin, width: rectSize, height: rectSize)
 let bgPath = CGPath(roundedRect: bgRect, cornerWidth: corner, cornerHeight: corner, transform: nil)
 
@@ -64,8 +70,8 @@ ctx.restoreGState()
 
 // --- usage gauge ---
 let center = CGPoint(x: s/2, y: s/2)
-let R = s * 0.285
-let lw = s * 0.10
+let R = s * (iosMode ? 0.30 : 0.285)   // no margin on iOS, so the gauge can breathe wider
+let lw = s * (iosMode ? 0.105 : 0.10)
 let cream = rgb(251,238,226)
 
 func deg(_ d: CGFloat) -> CGFloat { d * .pi / 180 }
@@ -87,7 +93,7 @@ ctx.setStrokeColor(cream)
 ctx.strokePath()
 
 // tick mark at the progress head (little dot) — subtle, only at larger sizes
-let showDot = CommandLine.arguments.count > 3 && CommandLine.arguments[3] == "dot"
+let showDot = flags.contains("dot")
 if showDot && s >= 64 {
     let a = deg(endAngle)
     let hx = center.x + cos(a)*R

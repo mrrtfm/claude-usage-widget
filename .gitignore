@@ -13,3 +13,8 @@ xcuserdata/
 
 # macos
 .DS_Store
+
+# ios build output (archive.sh)
+build/
+*.xcarchive
+*.ipa

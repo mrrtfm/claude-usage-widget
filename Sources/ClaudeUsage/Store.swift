@@ -3,6 +3,7 @@ import Observation
 import ServiceManagement
 import SwiftUI
 import os
+import ClaudeUsageKit
 
 private let log = Logger(subsystem: "com.laszlo.ClaudeUsage", category: "store")
 
