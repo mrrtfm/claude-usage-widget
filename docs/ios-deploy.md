@@ -27,8 +27,18 @@ decided entirely by whether your Apple ID is enrolled in the Apple Developer Pro
    > `'ClaudeUsageKit-product' requires minimum platform version 17.0 … but this target
    > supports 15.0` — the root package declares no iOS platform, so Xcode floors it at 15.
 2. **Xcode → Settings → Accounts → +** → Apple ID → sign in. a "Personal Team" appears.
-3. select the **ClaudeUsage** target → *Signing & Capabilities* → tick *Automatically manage
-   signing* → pick your Personal Team. repeat for the **ClaudeUsageWidget** target.
+3. drop your team id into an untracked config — the project reads it from there, so nobody's
+   personal id ends up in `project.pbxproj`:
+   ```sh
+   cp ios/Config/Local.xcconfig.example ios/Config/Local.xcconfig
+   # LOCAL_DEVELOPMENT_TEAM = <your 10-char team id>
+   ```
+   the id is in **Xcode → Settings → Accounts** (next to the team) or at
+   developer.apple.com/account → *Membership details*.
+
+   > don't set the team in *Signing & Capabilities* instead — that writes it back into
+   > `project.pbxproj` and it lands in your next commit. `ios/Config/Signing.xcconfig`
+   > already feeds both targets; `Local.xcconfig` is gitignored.
 4. bundle IDs must be globally unique, and `com.laszlo.ClaudeUsage` may already be taken.
    if Xcode says so, change both:
    - app: `com.<yourname>.ClaudeUsage`

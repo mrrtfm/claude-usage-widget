@@ -1,0 +1,11 @@
+// signing config. the team id is personal, so it lives in an untracked Local.xcconfig
+// next to this file — copy Local.xcconfig.example and fill it in:
+//
+//   cp ios/Config/Local.xcconfig.example ios/Config/Local.xcconfig
+//
+// `#include?` is the optional form: no file, no error — the build just fails at codesign
+// with "no account for team", which is the honest message anyway.
+#include? "Local.xcconfig"
+
+DEVELOPMENT_TEAM = $(LOCAL_DEVELOPMENT_TEAM)
+CODE_SIGN_STYLE = Automatic

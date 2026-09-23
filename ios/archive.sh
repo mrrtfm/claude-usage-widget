@@ -15,11 +15,14 @@ SCHEME="ClaudeUsage"
 OUT="build"
 ARCHIVE="$OUT/ClaudeUsage.xcarchive"
 
-# the team can't be inferred — automatic signing needs to know who's asking.
-TEAM="${DEVELOPMENT_TEAM:-}"
+# the team can't be inferred — automatic signing needs to know who's asking. env wins,
+# otherwise take it from the untracked ios/Config/Local.xcconfig the project builds with.
+LOCAL_CFG="ios/Config/Local.xcconfig"
+TEAM="${DEVELOPMENT_TEAM:-$(sed -n 's/^[[:space:]]*LOCAL_DEVELOPMENT_TEAM[[:space:]]*=[[:space:]]*//p' "$LOCAL_CFG" 2>/dev/null | tr -d '[:space:]')}"
 if [[ -z "$TEAM" ]]; then
-    echo "✗ set DEVELOPMENT_TEAM to your 10-char team id (Xcode → Settings → Accounts,"
-    echo "  or developer.apple.com/account → Membership details)."
+    echo "✗ no team id. either export DEVELOPMENT_TEAM, or:"
+    echo "    cp $LOCAL_CFG.example $LOCAL_CFG   # then put your 10-char team id in it"
+    echo "  (Xcode → Settings → Accounts, or developer.apple.com/account → Membership details)"
     exit 1
 fi
 
