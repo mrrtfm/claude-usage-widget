@@ -208,7 +208,7 @@ private extension WidgetPayload {
     // gallery/placeholder sample — never shown once real data lands
     static var preview: WidgetPayload {
         WidgetPayload(rows: [
-            .init(id: "1", initial: "L", name: "Laszlo", planLabel: "Max 20×",
+            .init(id: "1", initial: "A", name: "Alex", planLabel: "Max 20×",
                   sessionUsed: 34, sessionResets: Date().addingTimeInterval(3 * 3600),
                   weeklyUsed: 61, weeklyResets: Date().addingTimeInterval(4 * 86400))
         ])

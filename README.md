@@ -96,7 +96,7 @@ the remaining balance comes from a second call:
 
 ```
 GET https://claude.ai/api/organizations/{orgId}/prepaid/credits
-  -> { "amount": 7981, "currency": "USD", … }   # cents
+  -> { "amount": 4250, "currency": "USD", … }   # cents
 ```
 
 > `prepaid/credits` needs `billing:credit:get`, which team/enterprise seats don't have — the
