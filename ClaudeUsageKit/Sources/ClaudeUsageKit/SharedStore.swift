@@ -13,10 +13,12 @@ public struct WidgetPayload: Codable, Sendable {
         public var sessionResets: Date?
         public var weeklyUsed: Double?
         public var weeklyResets: Date?
+        public var extra: ExtraUsage?    // optional so payloads cached before this field still decode
 
         public init(id: String, initial: String, name: String, planLabel: String,
                     sessionUsed: Double?, sessionResets: Date?,
-                    weeklyUsed: Double?, weeklyResets: Date?) {
+                    weeklyUsed: Double?, weeklyResets: Date?,
+                    extra: ExtraUsage? = nil) {
             self.id = id
             self.initial = initial
             self.name = name
@@ -25,6 +27,7 @@ public struct WidgetPayload: Codable, Sendable {
             self.sessionResets = sessionResets
             self.weeklyUsed = weeklyUsed
             self.weeklyResets = weeklyResets
+            self.extra = extra
         }
     }
 
@@ -46,7 +49,8 @@ public struct WidgetPayload: Codable, Sendable {
                 sessionUsed: s.snapshot?.session?.used,
                 sessionResets: s.snapshot?.session?.resetsAt,
                 weeklyUsed: s.snapshot?.weeklyAll?.used,
-                weeklyResets: s.snapshot?.weeklyAll?.resetsAt)
+                weeklyResets: s.snapshot?.weeklyAll?.resetsAt,
+                extra: s.snapshot?.extra)
         }
         self.updatedAt = Date()
     }

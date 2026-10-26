@@ -42,16 +42,85 @@ public struct UsageWindow: Codable, Hashable, Sendable {
 // Codable so the iOS app can hand it to the widget through the app group.
 public struct UsageSnapshot: Codable, Equatable, Sendable {
     public var windows: [String: UsageWindow] = [:]
+    public var extra: ExtraUsage?        // nil when the org never turned on usage credits
     public var fetchedAt: Date = .init()
 
-    public init(windows: [String: UsageWindow] = [:], fetchedAt: Date = .init()) {
+    public init(windows: [String: UsageWindow] = [:], extra: ExtraUsage? = nil, fetchedAt: Date = .init()) {
         self.windows = windows
+        self.extra = extra
         self.fetchedAt = fetchedAt
     }
 
     public var session: UsageWindow? { windows["five_hour"] }
     public var weeklyAll: UsageWindow? { windows["seven_day"] }
     public var weeklyOpus: UsageWindow? { windows["seven_day_opus"] }
+}
+
+// usage credits ("extra usage"): a prepaid balance that kicks in once the plan limits are
+// hit, capped by a monthly spend limit. all amounts are minor units (cents) — the api's
+// `extra_usage` block says so via `decimal_places`, `/prepaid/credits` via `exponent`.
+public struct ExtraUsage: Codable, Hashable, Sendable {
+    public var enabled: Bool
+    public var usedMinor: Int            // spent this month
+    public var limitMinor: Int?          // monthly spend cap; nil = none reported
+    public var balanceMinor: Int?        // prepaid balance left; nil = not readable (team seats lack billing:credit:get)
+    public var utilization: Double?      // api's own used/limit percent
+    public var currency: String
+    public var exponent: Int
+    public var limitReached: Bool
+    public var disabledReason: String?
+
+    public init(enabled: Bool, usedMinor: Int, limitMinor: Int?, balanceMinor: Int?, utilization: Double?,
+                currency: String = "USD", exponent: Int = 2, limitReached: Bool = false, disabledReason: String? = nil) {
+        self.enabled = enabled
+        self.usedMinor = usedMinor
+        self.limitMinor = limitMinor
+        self.balanceMinor = balanceMinor
+        self.utilization = utilization
+        self.currency = currency
+        self.exponent = exponent
+        self.limitReached = limitReached
+        self.disabledReason = disabledReason
+    }
+
+    // percent of the monthly cap burned — drives the bar + tint like any other window
+    public var used: Double {
+        if let u = utilization { return max(0, min(100, u)) }
+        guard let limit = limitMinor, limit > 0 else { return 0 }
+        return max(0, min(100, Double(usedMinor) / Double(limit) * 100))
+    }
+    public var remainingMinor: Int? { limitMinor.map { max(0, $0 - usedMinor) } }
+
+    public var usedText: String { moneyText(usedMinor) }
+    public var limitText: String? { limitMinor.map(moneyText) }
+    public var remainingText: String? { remainingMinor.map(moneyText) }
+    public var balanceText: String? { balanceMinor.map(moneyText) }
+
+    public func moneyText(_ minor: Int) -> String {
+        ClaudeUsageKit.moneyText(minor: minor, currency: currency, exponent: exponent)
+    }
+
+    // the api never says when the monthly cap resets; anthropic bills spend limits per
+    // calendar month, so assume midnight UTC on the 1st. inferred, not reported.
+    public func periodResetsAt(now: Date = Date()) -> Date? {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        guard let start = cal.date(from: cal.dateComponents([.year, .month], from: now)) else { return nil }
+        return cal.date(byAdding: .month, value: 1, to: start)
+    }
+}
+
+// "$4.80" from minor units. drops the cents when they're zero so caps read as "$100".
+public func moneyText(minor: Int, currency: String, exponent: Int) -> String {
+    let value = Double(minor) / pow(10, Double(exponent))
+    let f = NumberFormatter()
+    f.numberStyle = .currency
+    f.currencyCode = currency
+    f.locale = Locale(identifier: "en_US")   // keeps "$" / "€" prefixes predictable across devices
+    let whole = value.rounded() == value
+    f.minimumFractionDigits = whole ? 0 : exponent
+    f.maximumFractionDigits = exponent
+    return f.string(from: NSNumber(value: value)) ?? String(format: "%.\(exponent)f", value)
 }
 
 // a signed-in claude account. cookies are the replayable session (sessionKey + friends).

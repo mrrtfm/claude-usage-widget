@@ -63,6 +63,7 @@ struct AccountCardView: View {
             if let w = snap.session { UsageBarView(title: "Session", subtitle: "5-hour window", window: w) }
             if let w = snap.weeklyAll { UsageBarView(title: "Weekly", subtitle: "all models · 7-day", window: w) }
             if let w = snap.weeklyOpus { UsageBarView(title: "Weekly Opus", subtitle: "opus · 7-day", window: w) }
+            if let x = snap.extra { CreditsRowView(extra: x) }
             if snap.session == nil && snap.weeklyAll == nil {
                 Text("No usage windows reported.")
                     .font(.caption2).foregroundStyle(.secondary)
@@ -116,5 +117,54 @@ struct UsageBarView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - usage credits
+
+// the money twin of UsageBarView: monthly spend vs cap, prepaid balance when readable.
+struct CreditsRowView: View {
+    let extra: ExtraUsage
+
+    private var tint: Color { extra.enabled ? usageTint(used: extra.used) : .secondary }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Extra usage").font(.caption.weight(.medium))
+                Text("credits · monthly").font(.caption2).foregroundStyle(.secondary)
+                Spacer()
+                Text(headline)
+                    .font(.caption.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(tint)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.quaternary).frame(height: 7)
+                    Capsule().fill(tint.gradient)
+                        .frame(width: max(5, geo.size.width * extra.used / 100), height: 7)
+                }
+            }
+            .frame(height: 7)
+            HStack {
+                Text(footer).font(.caption2).foregroundStyle(.secondary)
+                Spacer()
+                if let balance = extra.balanceText {
+                    Text("balance \(balance)").font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private var headline: String {
+        if !extra.enabled { return "off" }
+        if extra.limitReached { return "cap reached" }
+        return extra.remainingText.map { "\($0) left" } ?? "\(extra.usedText) used"
+    }
+
+    private var footer: String {
+        var s = extra.limitText.map { "\(extra.usedText) of \($0) used" } ?? "\(extra.usedText) used"
+        if let reset = extra.periodResetsAt() { s += " · \(resetText(reset))" }
+        return s
     }
 }

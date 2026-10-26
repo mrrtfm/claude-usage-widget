@@ -142,6 +142,42 @@ public enum ClaudeAPI {
             if let s = obj["resets_at"] as? String { resets = UsageWindow.parse(s) }
             windows[key] = UsageWindow(utilization: util, resetsAt: resets)
         }
-        return UsageSnapshot(windows: windows, fetchedAt: Date())
+
+        var extra = extraUsage(from: root["extra_usage"] as? [String: Any])
+        if extra != nil {
+            // prepaid balance lives on its own endpoint and needs billing:credit:get — team
+            // seats 403 on it, so a miss just leaves the balance blank.
+            extra?.balanceMinor = try? await fetchCreditBalance(orgUuid: orgUuid, cookies: cookies, userAgent: userAgent)
+        }
+        return UsageSnapshot(windows: windows, extra: extra, fetchedAt: Date())
+    }
+
+    // `extra_usage` block of /usage. nil unless credits were ever switched on for the org —
+    // a free/never-enabled account reports is_enabled=false with zeroes, not worth a row.
+    private static func extraUsage(from obj: [String: Any]?) -> ExtraUsage? {
+        guard let obj else { return nil }
+        let enabled = (obj["is_enabled"] as? Bool) ?? false
+        let ever = (obj["credits_ever_enabled"] as? Bool) ?? enabled
+        guard enabled || ever else { return nil }
+        func num(_ k: String) -> Double? { (obj[k] as? NSNumber)?.doubleValue }
+        return ExtraUsage(
+            enabled: enabled,
+            usedMinor: Int((num("used_credits") ?? 0).rounded()),
+            limitMinor: num("monthly_limit").map { Int($0.rounded()) },
+            balanceMinor: nil,
+            utilization: num("utilization"),
+            currency: (obj["currency"] as? String) ?? "USD",
+            exponent: Int(num("decimal_places") ?? 2),
+            limitReached: (obj["spend_limit_reached"] as? Bool) ?? false,
+            disabledReason: obj["disabled_reason"] as? String)
+    }
+
+    // remaining prepaid credits, minor units. `amount` is the headline balance; the
+    // tranches underneath break it down by purchase and are ignored here.
+    static func fetchCreditBalance(orgUuid: String, cookies: [String: String], userAgent: String?) async throws -> Int {
+        let data = try await get("/api/organizations/\(orgUuid)/prepaid/credits", cookies: cookies, userAgent: userAgent)
+        let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+        guard let amount = (root["amount"] as? NSNumber)?.doubleValue else { throw APIError(message: "no balance") }
+        return Int(amount.rounded())
     }
 }

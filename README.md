@@ -73,6 +73,7 @@ each card shows the plan badge, then a bar per limit window:
 | **Session** | rolling 5-hour limit |
 | **Weekly** | 7-day limit across all models |
 | **Weekly Opus** | 7-day Opus-only limit (Max plans) |
+| **Extra usage** | usage credits spent this month vs the monthly cap, plus the prepaid balance — only when the account has credits turned on |
 
 gear icon → refresh interval + toggle the menu-bar percentage. right-click a card to
 refresh, re-auth, or remove it.
@@ -87,7 +88,22 @@ GET https://claude.ai/api/organizations/{orgId}/usage
        "seven_day": {…}, "seven_day_opus": {…}, … }
 ```
 
-`utilization` is a 0–100 percent; the app shows `100 − utilization` as "left". auth is the
+`utilization` is a 0–100 percent; the app shows `100 − utilization` as "left".
+
+the same payload carries `extra_usage` (`used_credits`, `monthly_limit`, `utilization`,
+`currency`, `decimal_places`) — usage credits spent this month against the cap, in cents.
+the remaining balance comes from a second call:
+
+```
+GET https://claude.ai/api/organizations/{orgId}/prepaid/credits
+  -> { "amount": 7981, "currency": "USD", … }   # cents
+```
+
+> `prepaid/credits` needs `billing:credit:get`, which team/enterprise seats don't have — the
+> row then shows spend vs cap without a balance. the monthly reset date is inferred (1st of
+> the month, UTC); the api doesn't report it.
+
+auth is the
 browser session cookie captured at login (`sessionKey` + Cloudflare's `cf_clearance`),
 replayed with a matching user-agent. identity + plan come from `/api/bootstrap` and
 `/api/organizations`.

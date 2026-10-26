@@ -50,7 +50,8 @@ struct Provider: TimelineProvider {
                     name: a.name.isEmpty ? a.email : a.name,
                     planLabel: a.displayPlan.label,
                     sessionUsed: snap?.session?.used, sessionResets: snap?.session?.resetsAt,
-                    weeklyUsed: snap?.weeklyAll?.used, weeklyResets: snap?.weeklyAll?.resetsAt))
+                    weeklyUsed: snap?.weeklyAll?.used, weeklyResets: snap?.weeklyAll?.resetsAt,
+                    extra: snap?.extra))
             }
             return UsageEntry(date: Date(), payload: WidgetPayload(rows: rows), stale: false, unconfigured: false)
         }
