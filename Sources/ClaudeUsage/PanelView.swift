@@ -124,36 +124,39 @@ struct PanelView: View {
 // spins only while *you* are refreshing — background polls flip store.isRefreshing too, and
 // tying the spin to that left it turning on every 5-minute tick.
 //
-// the animation stays inside a fixed 14x14 box on purpose: `.animation`/`withAnimation` also
-// govern the subtree's own placement, and a repeatForever that leaks onto layout makes the
-// button fly back and forth forever. a repeatForever is never "finished" either — the reset to
-// 0 has to go through a transaction with animations disabled or it keeps turning.
+// no repeatForever: it leaks onto layout (button flies back and forth), and macOS 27 no longer
+// cancels it on a non-animated reset to 0, so it kept turning after the refresh. the angle is
+// derived from the clock instead — when spinStart is nil there's no animation left to stop.
 private struct RefreshButton: View {
     let isRefreshing: Bool
     let action: () async -> Void
-    @State private var angle: Double = 0
-    @State private var spinning = false
+    @State private var spinStart: Date?
 
     var body: some View {
         Button {
-            guard !spinning else { return }
-            spinning = true
-            withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) { angle = 360 }
+            guard spinStart == nil else { return }
+            spinStart = .now
             Task {
                 async let work: Void = action()
                 try? await Task.sleep(for: .milliseconds(600))   // don't flash on a fast refresh
                 await work
-                var stop = Transaction(); stop.disablesAnimations = true
-                withTransaction(stop) { angle = 0 }
-                spinning = false
+                spinStart = nil
             }
         } label: {
-            Image(systemName: "arrow.clockwise")
-                .rotationEffect(.degrees(angle))
-                .frame(width: 14, height: 14)
+            TimelineView(.animation(paused: spinStart == nil)) { ctx in
+                Image(systemName: "arrow.clockwise")
+                    .rotationEffect(.degrees(angle(at: ctx.date)))
+            }
+            .frame(width: 14, height: 14)
         }
         .buttonStyle(.borderless)
         .disabled(isRefreshing)
+    }
+
+    // one turn per second since the click; 0 when idle
+    private func angle(at date: Date) -> Double {
+        guard let start = spinStart else { return 0 }
+        return date.timeIntervalSince(start).truncatingRemainder(dividingBy: 1) * 360
     }
 }
 
