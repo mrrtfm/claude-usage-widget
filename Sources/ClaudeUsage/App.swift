@@ -27,8 +27,9 @@ struct ClaudeUsageApp: App {
 }
 
 // menu bar label. MenuBarExtra clips a live multi-line View to one text line, so we
-// rasterise the layout with ImageRenderer and hand it over as a template image — which it
-// scales to fit the bar height, so both lines of a two-account readout survive.
+// rasterise the layout with ImageRenderer and hand it over as a template image. the raster
+// is pinned to the bar's thickness and whole points, and carries a 1x and a 2x rep — see
+// render() for why each of those matters.
 struct MenuBarLabel: View {
     var store: UsageStore
 
@@ -41,11 +42,36 @@ struct MenuBarLabel: View {
         return Image(nsImage: render(items: items, worst: worst, show: show))
     }
 
+    // three traps, all of which read as "blurry numbers":
+    //   • NSScreen.main is whichever screen has focus, so rendering at its scale puts a 1x
+    //     bitmap on the retina bar whenever an external 1x monitor was active. ship a 1x and
+    //     a 2x rep in one NSImage instead and let AppKit pick per screen.
+    //   • the bar is NSStatusBar.thickness tall (22pt). anything taller — the two-line
+    //     readout was 24pt — gets resampled to fit. pin the height.
+    //   • text widths are fractional (43.5pt), which lands glyphs half a pixel off the grid
+    //     on 1x screens. measure first, then re-render at the width rounded up.
     @MainActor private func render(items: [(initial: String, used: Double?)], worst: Double?, show: Bool) -> NSImage {
+        let fallback = NSImage(systemSymbolName: "speedometer", accessibilityDescription: "usage") ?? NSImage()
+        let height = NSStatusBar.system.thickness
         let content = MenuBarContent(items: items, worst: worst, show: show)
-        let renderer = ImageRenderer(content: content)
-        renderer.scale = NSScreen.main?.backingScaleFactor ?? 2
-        let img = renderer.nsImage ?? NSImage(systemSymbolName: "speedometer", accessibilityDescription: "usage") ?? NSImage()
+
+        // pass 1 — measure. cgImage at scale 1 is already ceil'd to whole px == whole points.
+        let probe = ImageRenderer(content: content.frame(height: height))
+        probe.scale = 1
+        guard let measured = probe.cgImage else { return fallback }
+        let size = NSSize(width: CGFloat(measured.width), height: height)
+
+        // pass 2 — rasterise at the rounded size, once per scale the screens may ask for.
+        let renderer = ImageRenderer(content: content.frame(width: size.width, height: size.height))
+        let img = NSImage(size: size)
+        for scale in [1.0, 2.0] as [CGFloat] {
+            renderer.scale = scale
+            guard let cg = renderer.cgImage else { continue }
+            let rep = NSBitmapImageRep(cgImage: cg)
+            rep.size = size   // same point size for both reps — that's what makes them 1x/2x of one image
+            img.addRepresentation(rep)
+        }
+        guard !img.representations.isEmpty else { return fallback }
         img.isTemplate = true   // let the menu bar tint it for light/dark
         return img
     }
@@ -81,7 +107,8 @@ private struct MenuBarContent: View {
             }
         }
         .foregroundStyle(.black)   // template image tints by alpha; colour is irrelevant
-        .padding(.vertical, 1)
+        // no vertical padding: two 9pt lines are exactly the bar's 22pt, padding would push
+        // the raster past it and get the whole thing resampled
     }
 }
 
